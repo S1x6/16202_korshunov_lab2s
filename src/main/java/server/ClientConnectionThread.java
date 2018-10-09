@@ -3,6 +3,7 @@ package server;
 import javax.naming.spi.DirectoryManager;
 import java.io.*;
 import java.net.Socket;
+import java.net.SocketException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -33,14 +34,14 @@ public class ClientConnectionThread extends Thread {
 
             String[] metaInfo;
 
+
             metaInfo = (String[]) inObj.readObject();
 
 
             if (metaInfo != null) {
                 System.out.println(metaInfo[0] + " " + metaInfo[1]);
                 String fileName = metaInfo[0];
-                int fileSize = Integer.valueOf(metaInfo[1]); // why do we need this??
-
+                int fileSize = Integer.valueOf(metaInfo[1]);
                 Path uploads = Paths.get("uploads");
                 if (!Files.exists(uploads)) {
                     Files.createDirectory(uploads);
@@ -54,11 +55,20 @@ public class ClientConnectionThread extends Thread {
                 int bufSize = 8000;
                 byte[] buffer = new byte[bufSize];
                 int count;
+                int sum = 0;
                 while ((count = inData.read(buffer)) > 0) {
                     fos.write(buffer, 0, count);
+                    sum += count;
                 }
-                out.writeObject("success");
+                System.out.println(fileName + ":  " + fileSize + "/" + sum + " bytes received");
+                if (fileSize == sum) {
+                    out.writeObject("success");
+                } else {
+                    out.writeObject("loss");
+                }
             }
+        } catch (SocketException ex) {
+            System.out.println("Connection lost");
         } catch (IOException | ClassNotFoundException e) {
             e.printStackTrace();
         } finally {
